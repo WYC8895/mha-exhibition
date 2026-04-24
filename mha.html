@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MHA 原畫展 - 雲端同步版</title>
+    <style>
+        /* 延用之前的樣式，這裡略作精簡 */
+        body { font-family: sans-serif; background: #f0f2f5; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .header { background: #0047ab; color: white; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 20px; }
+        .input-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        input, button { padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
+        .sync-status { text-align: center; font-size: 12px; margin-bottom: 10px; color: #666; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border-bottom: 1px solid #eee; padding: 12px; text-align: left; }
+        .total-box { margin-top: 20px; text-align: right; font-weight: bold; color: #d32f2f; font-size: 1.2em; }
+        .table-input { width: 50px; text-align: center; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header"><h2>MHA 原畫展 (雲端同步)</h2></div>
+    
+    <div class="sync-status" id="status">狀態：就緒 (本地模式)</div>
+    
+    <div class="input-grid">
+        <input type="text" id="name" placeholder="品名">
+        <input type="number" id="jpy" placeholder="日幣">
+        <input type="number" id="qty" placeholder="數量">
+        <input type="number" id="limit" placeholder="限購">
+        <button onclick="addItem()" style="background:#ffcf00; border:none; cursor:pointer;">新增</button>
+    </div>
+
+    <div style="text-align: right; margin-bottom: 10px;">
+        <button onclick="saveToCloud()" style="background:#28a745; color:white;">手動同步到雲端</button>
+        <button onclick="loadFromCloud()" style="background:#17a2b8; color:white;">從雲端讀取資料</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr><th>品名</th><th>數量/限購</th><th>小計(台幣)</th><th>操作</th></tr>
+        </thead>
+        <tbody id="listBody"></tbody>
+    </table>
+
+    <div class="total-box">總計：NT$ <span id="grandTotalTW">0</span></div>
+</div>
+
+<script>
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbzRcvjg07Hu-2oQCh-IVM14N3fmROGoahME_zVcs2-z4U65XGXiVX6TMC82izNu-lBPtg/exec'; // <--- 貼上你的 URL
+    const RATE = 0.20;
+    let data = [];
+
+    async function saveToCloud() {
+        document.getElementById('status').innerText = '儲存中...';
+        await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'save', items: data }) });
+        document.getElementById('status').innerText = '已同步至雲端';
+    }
+
+    async function loadFromCloud() {
+        document.getElementById('status').innerText = '讀取中...';
+        const resp = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'load' }) });
+        data = await resp.json();
+        render();
+        document.getElementById('status').innerText = '已載入最新雲端資料';
+    }
+
+    function addItem() {
+        const item = {
+            id: Date.now(),
+            name: document.getElementById('name').value,
+            jpy: Number(document.getElementById('jpy').value),
+            qty: Number(document.getElementById('qty').value),
+            limit: Number(document.getElementById('limit').value)
+        };
+        data.push(item);
+        render();
+        saveToCloud(); // 新增時自動同步
+    }
+
+    function updateQty(id, val) {
+        const i = data.findIndex(x => x.id === id);
+        data[i].qty = Number(val);
+        render();
+    }
+
+    function render() {
+        const body = document.getElementById('listBody');
+        body.innerHTML = '';
+        let total = 0;
+        data.forEach(item => {
+            const tw = Math.round(item.jpy * RATE * item.qty);
+            total += tw;
+            body.innerHTML += `<tr>
+                <td>${item.name}</td>
+                <td><input type="number" class="table-input" value="${item.qty}" onchange="updateQty(${item.id}, this.value)"> / ${item.limit}</td>
+                <td>NT$ ${tw.toLocaleString()}</td>
+                <td><button onclick="data=data.filter(x=>x.id!=${item.id});render();saveToCloud();">✕</button></td>
+            </tr>`;
+        });
+        document.getElementById('grandTotalTW').innerText = total.toLocaleString();
+    }
+</script>
+</body>
+</html>
