@@ -3,105 +3,205 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MHA 原畫展</title>
+    <title>MHA 原畫展 - 雲端雙幣對帳版</title>
     <style>
-        /* 延用之前的樣式，這裡略作精簡 */
-        body { font-family: sans-serif; background: #f0f2f5; padding: 20px; }
-        .container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .header { background: #0047ab; color: white; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 20px; }
-        .input-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-        input, button { padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
-        .sync-status { text-align: center; font-size: 12px; margin-bottom: 10px; color: #666; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border-bottom: 1px solid #eee; padding: 12px; text-align: left; }
-        .total-box { margin-top: 20px; text-align: right; font-weight: bold; color: #d32f2f; font-size: 1.2em; }
-        .table-input { width: 50px; text-align: center; border: 1px solid #ccc; }
+        body { font-family: 'Segoe UI', 'Noto Sans TC', sans-serif; background: #f8f9fa; padding: 20px; }
+        .container { max-width: 950px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #0047ab 0%, #ffcf00 100%); color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; text-align: center; }
+        .sync-status { text-align: center; font-size: 12px; margin-bottom: 15px; color: #666; font-weight: bold; }
+        .input-grid { display: grid; grid-template-columns: 2fr 1fr 0.8fr 0.8fr 1fr; gap: 10px; margin-bottom: 20px; }
+        input { padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+        .table-input { width: 60px; padding: 5px; border: 1px solid #ccc; border-radius: 4px; text-align: center; font-weight: bold; }
+        button { padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; border: none; }
+        .add-btn { background: #0047ab; color: white; }
+        .cloud-btn { background: #28a745; color: white; margin-left: 5px; }
+        .load-btn { background: #17a2b8; color: white; margin-left: 5px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+        th { background: #f1f5f9; padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6; color: #444; }
+        td { padding: 12px; border-bottom: 1px solid #eee; vertical-align: middle; }
+        
+        .currency-label { font-size: 11px; background: #eee; padding: 2px 4px; border-radius: 3px; margin-right: 4px; color: #666; }
+        .currency-jp { color: #666; font-size: 0.95em; }
+        .currency-tw { color: #d32f2f; font-weight: bold; }
+        .warning-input { border: 2px solid #ff0000 !important; background: #fff0f0; color: #ff0000; }
+        
+        .total-box { margin-top: 25px; padding: 15px; background: #fffde7; border-radius: 8px; display: flex; justify-content: flex-end; gap: 40px; border: 1px solid #ffe57f; }
+        .total-item { text-align: right; }
+        .total-val { font-size: 1.5em; font-weight: bold; }
+        .val-jp { color: #666; }
+        .val-tw { color: #d32f2f; }
+        .del-btn { color: #ccc; cursor: pointer; background: none; font-size: 18px; }
+        .del-btn:hover { color: red; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="header"><h2>MHA 原畫展</h2></div>
-    
-    <div class="sync-status" id="status">狀態：就緒 (本地模式)</div>
-    
-    <div class="input-grid">
-        <input type="text" id="name" placeholder="品名">
-        <input type="number" id="jpy" placeholder="日幣">
-        <input type="number" id="qty" placeholder="數量">
-        <input type="number" id="limit" placeholder="限購">
-        <button onclick="addItem()" style="background:#ffcf00; border:none; cursor:pointer;">新增</button>
+    <div class="header">
+        <h2 style="margin:0;">MHA 原畫展 (雲端雙幣對帳版)</h2>
+        <p style="margin:5px 0 0; font-size: 0.8em; opacity: 0.9;">匯率：0.20 | 支援手機電腦同步</p>
     </div>
 
-    <div style="text-align: right; margin-bottom: 10px;">
-        <button onclick="saveToCloud()" style="background:#28a745; color:white;">手動同步到雲端</button>
-        <button onclick="loadFromCloud()" style="background:#17a2b8; color:white;">從雲端讀取資料</button>
+    <div id="status" class="sync-status">狀態：就緒 (請定期同步)</div>
+
+    <div class="input-grid">
+        <input type="text" id="name" placeholder="品名">
+        <input type="number" id="jpy" placeholder="日幣單價">
+        <input type="number" id="qty" placeholder="數量">
+        <input type="number" id="limit" placeholder="限購">
+        <button class="add-btn" onclick="addItem()">新增項目</button>
+    </div>
+
+    <div style="text-align: right; margin-bottom: 15px;">
+        <button class="cloud-btn" onclick="saveToCloud()">⬆️ 同步到雲端</button>
+        <button class="load-btn" onclick="loadFromCloud()">⬇️ 讀取雲端資料</button>
     </div>
 
     <table>
         <thead>
-            <tr><th>品名</th><th>數量/限購</th><th>小計(台幣)</th><th>操作</th></tr>
+            <tr>
+                <th width="25%">品名</th>
+                <th width="20%">數量 / 限購</th>
+                <th width="22%">單價 (日/台)</th>
+                <th width="23%">小計 (日/台)</th>
+                <th width="10%"></th>
+            </tr>
         </thead>
         <tbody id="listBody"></tbody>
     </table>
 
-    <div class="total-box">總計：NT$ <span id="grandTotalTW">0</span></div>
+    <div class="total-box">
+        <div class="total-item">
+            <div style="font-size: 0.8em; color: #666;">總計日幣 (JPY)</div>
+            <div class="total-val val-jp">¥ <span id="grandTotalJP">0</span></div>
+        </div>
+        <div class="total-item">
+            <div style="font-size: 0.8em; color: #666;">總計台幣 (TWD)</div>
+            <div class="total-val val-tw">NT$ <span id="grandTotalTW">0</span></div>
+        </div>
+    </div>
 </div>
 
 <script>
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbzRcvjg07Hu-2oQCh-IVM14N3fmROGoahME_zVcs2-z4U65XGXiVX6TMC82izNu-lBPtg/exec'; // <--- 貼上你的 URL
+    // 你的 Google Apps Script URL
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbzRcvjg07Hu-2oQCh-IVM14N3fmROGoahME_zVcs2-z4U65XGXiVX6TMC82izNu-lBPtg/exec'; 
     const RATE = 0.20;
     let data = [];
 
+    // 頁面載入時嘗試讀取雲端
+    window.onload = loadFromCloud;
+
     async function saveToCloud() {
-        document.getElementById('status').innerText = '儲存中...';
-        await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'save', items: data }) });
-        document.getElementById('status').innerText = '已同步至雲端';
+        document.getElementById('status').innerText = '☁️ 雲端儲存中...';
+        try {
+            await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'save', items: data }) });
+            document.getElementById('status').innerText = '✅ 已成功同步至雲端';
+        } catch (e) {
+            document.getElementById('status').innerText = '❌ 同步失敗，請檢查網路';
+        }
     }
 
     async function loadFromCloud() {
-        document.getElementById('status').innerText = '讀取中...';
-        const resp = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'load' }) });
-        data = await resp.json();
-        render();
-        document.getElementById('status').innerText = '已載入最新雲端資料';
+        document.getElementById('status').innerText = '⏳ 讀取雲端資料中...';
+        try {
+            const resp = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'load' }) });
+            data = await resp.json();
+            render();
+            document.getElementById('status').innerText = '✅ 已載入最新資料';
+        } catch (e) {
+            document.getElementById('status').innerText = '❌ 讀取失敗';
+        }
     }
 
     function addItem() {
-        const item = {
+        const name = document.getElementById('name').value;
+        const jpy = document.getElementById('jpy').value;
+        const qty = document.getElementById('qty').value;
+        const limit = document.getElementById('limit').value;
+
+        if (!name || !jpy || !qty || !limit) {
+            alert("請填寫所有欄位！");
+            return;
+        }
+
+        const newItem = {
             id: Date.now(),
-            name: document.getElementById('name').value,
-            jpy: Number(document.getElementById('jpy').value),
-            qty: Number(document.getElementById('qty').value),
-            limit: Number(document.getElementById('limit').value)
+            name: name,
+            jpy: Number(jpy),
+            qty: Number(qty),
+            limit: Number(limit)
         };
-        data.push(item);
+
+        data.push(newItem);
         render();
-        saveToCloud(); // 新增時自動同步
+        saveToCloud(); // 新增時自動觸發同步
+
+        document.getElementById('name').value = '';
+        document.getElementById('jpy').value = '';
+        document.getElementById('qty').value = '';
+        document.getElementById('limit').value = '';
     }
 
     function updateQty(id, val) {
         const i = data.findIndex(x => x.id === id);
-        data[i].qty = Number(val);
-        render();
+        if (i !== -1) {
+            data[i].qty = Number(val);
+            render();
+            saveToCloud(); // 修改數量時也同步
+        }
+    }
+
+    function deleteItem(id) {
+        if(confirm('確定要刪除嗎？')) {
+            data = data.filter(x => x.id !== id);
+            render();
+            saveToCloud();
+        }
     }
 
     function render() {
         const body = document.getElementById('listBody');
         body.innerHTML = '';
-        let total = 0;
+        let totalJP = 0;
+        let totalTW = 0;
+
         data.forEach(item => {
-            const tw = Math.round(item.jpy * RATE * item.qty);
-            total += tw;
-            body.innerHTML += `<tr>
-                <td>${item.name}</td>
-                <td><input type="number" class="table-input" value="${item.qty}" onchange="updateQty(${item.id}, this.value)"> / ${item.limit}</td>
-                <td>NT$ ${tw.toLocaleString()}</td>
-                <td><button onclick="data=data.filter(x=>x.id!=${item.id});render();saveToCloud();">✕</button></td>
-            </tr>`;
+            const singleTW = Math.round(item.jpy * RATE);
+            const subJP = item.jpy * item.qty;
+            const subTW = singleTW * item.qty;
+            
+            totalJP += subJP;
+            totalTW += subTW;
+
+            const isOverLimit = item.qty > item.limit;
+            const qtyInputClass = isOverLimit ? 'table-input warning-input' : 'table-input';
+            
+            body.innerHTML += `
+                <tr>
+                    <td><strong>${item.name}</strong></td>
+                    <td>
+                        <input type="number" class="${qtyInputClass}" value="${item.qty}" onchange="updateQty(${item.id}, this.value)">
+                        <span style="margin: 0 5px;">/</span>
+                        <span style="color:#666; font-weight:bold;">${item.limit}</span>
+                        ${isOverLimit ? '<div style="color:red; font-size:10px;">⚠️超標</div>' : ''}
+                    </td>
+                    <td>
+                        <div class="currency-jp"><span class="currency-label">日</span>¥${item.jpy.toLocaleString()}</div>
+                        <div class="currency-tw"><span class="currency-label">台</span>NT$${singleTW.toLocaleString()}</div>
+                    </td>
+                    <td>
+                        <div class="currency-jp"><span class="currency-label">日</span>¥${subJP.toLocaleString()}</div>
+                        <div class="currency-tw"><span class="currency-label">台</span>NT$${subTW.toLocaleString()}</div>
+                    </td>
+                    <td style="text-align:center;"><button class="del-btn" onclick="deleteItem(${item.id})">✕</button></td>
+                </tr>
+            `;
         });
-        document.getElementById('grandTotalTW').innerText = total.toLocaleString();
+        document.getElementById('grandTotalJP').innerText = totalJP.toLocaleString();
+        document.getElementById('grandTotalTW').innerText = totalTW.toLocaleString();
     }
 </script>
+
 </body>
 </html>
