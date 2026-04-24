@@ -9,6 +9,11 @@
         .container { max-width: 950px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         .header { background: linear-gradient(135deg, #0047ab 0%, #ffcf00 100%); color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; text-align: center; }
         .sync-status { text-align: center; font-size: 12px; margin-bottom: 15px; color: #666; font-weight: bold; }
+        
+        /* 匯率調整區 */
+        .rate-config { background: #eef2f7; padding: 10px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .rate-input { width: 80px; padding: 5px; border: 2px solid #0047ab; border-radius: 4px; text-align: center; font-weight: bold; color: #0047ab; }
+
         .input-grid { display: grid; grid-template-columns: 2fr 1fr 0.8fr 0.8fr 1fr; gap: 10px; margin-bottom: 20px; }
         input { padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
         .table-input { width: 60px; padding: 5px; border: 1px solid #ccc; border-radius: 4px; text-align: center; font-weight: bold; }
@@ -39,11 +44,17 @@
 
 <div class="container">
     <div class="header">
-        <h2 style="margin:0;">MHA 原畫展 (購物小幫手)</h2>
-        <p style="margin:5px 0 0; font-size: 0.8em; opacity: 0.9;">匯率：0.20 | 支援手機電腦同步</p>
+        <h2 style="margin:0;">MHA 原畫展 購物小幫手</h2>
+        <p style="margin:5px 0 0; font-size: 0.8em; opacity: 0.9;">即時換算單價與小計</p>
     </div>
 
-    <div id="status" class="sync-status">狀態：就緒 (請定期同步)</div>
+    <div id="status" class="sync-status">狀態：正在載入最新資料...</div>
+
+    <div class="rate-config">
+        <span>當前匯率 1 JPY = </span>
+        <input type="number" id="currentRate" class="rate-input" value="0.20" step="0.01" onchange="updateRate()">
+        <span> TWD</span>
+    </div>
 
     <div class="input-grid">
         <input type="text" id="name" placeholder="品名">
@@ -54,8 +65,8 @@
     </div>
 
     <div style="text-align: right; margin-bottom: 15px;">
-        <button class="cloud-btn" onclick="saveToCloud()">⬆️ 同步到雲端</button>
-        <button class="load-btn" onclick="loadFromCloud()">⬇️ 讀取雲端資料</button>
+        <button class="cloud-btn" onclick="saveToCloud()">⬆️ 手動同步</button>
+        <button class="load-btn" onclick="loadFromCloud()">⬇️ 強制刷新</button>
     </div>
 
     <table>
@@ -84,59 +95,72 @@
 </div>
 
 <script>
-    // 你的 Google Apps Script URL
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbzRcvjg07Hu-2oQCh-IVM14N3fmROGoahME_zVcs2-z4U65XGXiVX6TMC82izNu-lBPtg/exec'; 
-    const RATE = 0.20;
     let data = [];
+    let RATE = 0.20;
 
-    // 頁面載入時嘗試讀取雲端
     window.onload = loadFromCloud;
 
+    // 更新匯率功能
+    function updateRate() {
+        RATE = Number(document.getElementById('currentRate').value);
+        render();
+        saveToCloud(); // 匯率變動也同步到雲端
+    }
+
     async function saveToCloud() {
-        document.getElementById('status').innerText = '☁️ 雲端儲存中...';
+        document.getElementById('status').innerText = '☁️ 同步中...';
+        const payload = {
+            action: 'save',
+            items: data,
+            rate: RATE // 將目前匯率一起存進去
+        };
         try {
-            await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'save', items: data }) });
-            document.getElementById('status').innerText = '✅ 已成功同步至雲端';
+            await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
+            document.getElementById('status').innerText = '✅ 資料已雲端同步';
         } catch (e) {
-            document.getElementById('status').innerText = '❌ 同步失敗，請檢查網路';
+            document.getElementById('status').innerText = '❌ 同步失敗';
         }
     }
 
     async function loadFromCloud() {
-        document.getElementById('status').innerText = '⏳ 讀取雲端資料中...';
+        document.getElementById('status').innerText = '⏳ 載入中...';
         try {
             const resp = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'load' }) });
-            data = await resp.json();
+            const result = await resp.json();
+            
+            // 如果雲端有回傳匯率，就更新它
+            if (result.items) {
+                data = result.items;
+                // 假設我們在 GAS 那邊也處理匯率，這裡示範如何從資料中恢復
+                // 為了簡單起見，如果 result 帶有匯率欄位就更新：
+                if (result.rate) {
+                    RATE = result.rate;
+                    document.getElementById('currentRate').value = RATE;
+                }
+            } else {
+                data = result; // 相容舊版資料格式
+            }
+            
             render();
-            document.getElementById('status').innerText = '✅ 已載入最新資料';
+            document.getElementById('status').innerText = '✅ 載入成功';
         } catch (e) {
-            document.getElementById('status').innerText = '❌ 讀取失敗';
+            document.getElementById('status').innerText = '❌ 載入失敗';
         }
     }
 
     function addItem() {
-        const name = document.getElementById('name').value;
-        const jpy = document.getElementById('jpy').value;
-        const qty = document.getElementById('qty').value;
-        const limit = document.getElementById('limit').value;
-
-        if (!name || !jpy || !qty || !limit) {
-            alert("請填寫所有欄位！");
-            return;
-        }
-
-        const newItem = {
+        const item = {
             id: Date.now(),
-            name: name,
-            jpy: Number(jpy),
-            qty: Number(qty),
-            limit: Number(limit)
+            name: document.getElementById('name').value,
+            jpy: Number(document.getElementById('jpy').value),
+            qty: Number(document.getElementById('qty').value),
+            limit: Number(document.getElementById('limit').value)
         };
-
-        data.push(newItem);
+        if (!item.name || !item.jpy) return alert("填寫完整喔！");
+        data.push(item);
         render();
-        saveToCloud(); // 新增時自動觸發同步
-
+        saveToCloud();
         document.getElementById('name').value = '';
         document.getElementById('jpy').value = '';
         document.getElementById('qty').value = '';
@@ -145,11 +169,9 @@
 
     function updateQty(id, val) {
         const i = data.findIndex(x => x.id === id);
-        if (i !== -1) {
-            data[i].qty = Number(val);
-            render();
-            saveToCloud(); // 修改數量時也同步
-        }
+        data[i].qty = Number(val);
+        render();
+        saveToCloud();
     }
 
     function deleteItem(id) {
@@ -170,21 +192,17 @@
             const singleTW = Math.round(item.jpy * RATE);
             const subJP = item.jpy * item.qty;
             const subTW = singleTW * item.qty;
-            
             totalJP += subJP;
             totalTW += subTW;
-
             const isOverLimit = item.qty > item.limit;
-            const qtyInputClass = isOverLimit ? 'table-input warning-input' : 'table-input';
             
             body.innerHTML += `
                 <tr>
                     <td><strong>${item.name}</strong></td>
                     <td>
-                        <input type="number" class="${qtyInputClass}" value="${item.qty}" onchange="updateQty(${item.id}, this.value)">
+                        <input type="number" class="table-input ${isOverLimit ? 'warning-input' : ''}" value="${item.qty}" onchange="updateQty(${item.id}, this.value)">
                         <span style="margin: 0 5px;">/</span>
-                        <span style="color:#666; font-weight:bold;">${item.limit}</span>
-                        ${isOverLimit ? '<div style="color:red; font-size:10px;">⚠️超標</div>' : ''}
+                        <span style="font-weight:bold;">${item.limit}</span>
                     </td>
                     <td>
                         <div class="currency-jp"><span class="currency-label">日</span>¥${item.jpy.toLocaleString()}</div>
@@ -194,7 +212,7 @@
                         <div class="currency-jp"><span class="currency-label">日</span>¥${subJP.toLocaleString()}</div>
                         <div class="currency-tw"><span class="currency-label">台</span>NT$${subTW.toLocaleString()}</div>
                     </td>
-                    <td style="text-align:center;"><button class="del-btn" onclick="deleteItem(${item.id})">✕</button></td>
+                    <td><button class="del-btn" onclick="deleteItem(${item.id})">✕</button></td>
                 </tr>
             `;
         });
@@ -202,6 +220,5 @@
         document.getElementById('grandTotalTW').innerText = totalTW.toLocaleString();
     }
 </script>
-
 </body>
 </html>
